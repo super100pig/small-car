@@ -6,7 +6,7 @@ import os
 import time
 import numpy as np
 
-model_path = 'model/sherpa-onnx-paraformer-zh-small-2024-03-09'
+model_path = 'model/ASR/sherpa-onnx-paraformer-zh-small-2024-03-09'
 
 class ASR:
     def __init__(self):
