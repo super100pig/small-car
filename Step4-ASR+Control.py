@@ -69,24 +69,21 @@ samples_per_read = int(0.1 * sample_rate)
 control_url = "http://192.168.192.123:5000/control"  
 
 def send_command(text):
-    try:
-        if '前进' == text:
-            response = requests.post(control_url, json={'command': "FORWARD"})
-        elif '后退' == text:
-            response = requests.post(control_url, json={'command': "STOP"})
-        elif '左转' == text:
-            response = requests.post(control_url, json={'command': "LEFT"})
-        elif '右转' in text:
-            response = requests.post(control_url, json={'command': "RIGHT"})
-        else:
-            response = requests.post(control_url, json={'command': "STOP"})
+    global control_url
+    ##TODO
+    if '左' in text:
+        response = requests.post(control_url, json={'command': "LEFT"})
+    elif '右' in text:
+        response = requests.post(control_url, json={'command': "RIGHT"})
+    elif '前' in text:
+        response = requests.post(control_url, json={'command': "FORWARD"})
+    elif '停' in text:
+        response = requests.post(control_url, json={'command': "STOP"})
+    else:
+        response = requests.post(control_url, json={'command': "STOP"})
+    ##TODO
 
-        if response.status_code != 200:
-            print('小车指令请求失败：', response)
-    except Exception as e:
-        print('小车指令请求异常：', e)
-
-print('\n正在识别语音指令...')
+print('正在识别音频...')
 idx = 1
 buffer = []
 try:
@@ -107,20 +104,7 @@ try:
                 if len(text):
                     print()
                     print(f'第{idx}句：{text}')
-                    if '前进' in text:
-                        print('小车指令：前进')
-                        send_command('前进')
-                    elif '后退' in text:
-                        print('小车指令：后退')
-                        send_command('后退')
-                    elif '左转' in text:
-                        print('小车指令：左转')
-                        send_command('左转')
-                    elif '右转' in text:
-                        print('小车指令：右转')
-                        send_command('右转')
-                    else:
-                        print('小车指令：无')
+                    send_command(text)
                     idx += 1
 except KeyboardInterrupt:
     sd.stop()

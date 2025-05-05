@@ -6,6 +6,7 @@ import sounddevice as sd
 import numpy as np
 from sentence_transformers import SentenceTransformer
 import joblib
+import requests
 
 
 asr_path = 'model/ASR/sherpa-onnx-paraformer-zh-small-2024-03-09'
@@ -71,6 +72,26 @@ window_size = config.silero_vad.window_size
 vad = VoiceActivityDetector(config, buffer_size_in_seconds=100)
 samples_per_read = int(0.1 * sample_rate)
 
+control_url = "http://192.168.192.123:5000/control"  
+
+def send_command(text):
+    try:
+        if '前进' == text:
+            response = requests.post(control_url, json={'command': "FORWARD"})
+        elif '后退' == text:
+            response = requests.post(control_url, json={'command': "STOP"})
+        elif '左转' == text:
+            response = requests.post(control_url, json={'command': "LEFT"})
+        elif '右转' in text:
+            response = requests.post(control_url, json={'command': "RIGHT"})
+        else:
+            response = requests.post(control_url, json={'command': "STOP"})
+
+        if response.status_code != 200:
+            print('小车指令请求失败：', response)
+    except Exception as e:
+        print('小车指令请求异常：', e)
+
 print('\n正在识别语音指令...')
 idx = 1
 buffer = []
@@ -98,6 +119,7 @@ try:
                         print('未识别到小车指令')
                     else:
                         print('识别到小车指令：', command)
+                        send_command(command)
                     idx += 1
 except KeyboardInterrupt:
     sd.stop()

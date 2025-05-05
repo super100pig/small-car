@@ -5,10 +5,70 @@ import librosa
 import sounddevice as sd
 import numpy as np
 import requests
+import json
 
 
 asr_path = 'model/ASR/sherpa-onnx-paraformer-zh-small-2024-03-09'
 vad_path = 'model/VAD'
+
+def get_command(text: str) -> str:
+    url = "https://api.siliconflow.cn/v1/chat/completions"
+
+    payload = {
+        "model": "Qwen/QwQ-32B",
+        "messages": [
+            {
+                "role": "user",
+                "content": f"你是一辆小车，现在你的任务是“{text}”，你可选择的动作有“前进、后退、左转、右转、无操作”，你只需要回答下一步你会做的动作即可，你的选择是："
+            }
+        ],
+        "stream": False,
+        "max_tokens": 512,
+        "enable_thinking": False,
+        "thinking_budget": 512,
+        "min_p": 0.05,
+        "stop": None,
+        "temperature": 0.7,
+        "top_p": 0.7,
+        "top_k": 50,
+        "frequency_penalty": 0.5,
+        "n": 1,
+        "response_format": {"type": "text"},
+        "tools": [
+            {
+                "type": "function",
+                "function": {
+                    "description": "<string>",
+                    "name": "<string>",
+                    "parameters": {},
+                    "strict": False
+                }
+            }
+        ]
+    }
+    headers = {
+        "Authorization": "Bearer sk-oboumgsutddcwgewajpsslapvhxlbejhjrfbcmndhmnmmxla",
+        "Content-Type": "application/json"
+    }
+    try:
+        response = requests.request("POST", url, json=payload, headers=headers)
+        r_content = json.loads(response.text)['choices'][0]['message']['content'].strip()
+        r_reason = json.loads(response.text)['choices'][0]['message']['reasoning_content'].strip()
+
+        print('大模型回复：', r_content)
+        print('大模型推理过程：', r_reason)
+        command_list = ['前进', '后退', '左转', '右转', '无操作']
+        rfind_idx_list = [
+            r_content.rfind(command) for command in command_list
+        ]
+        max_idx = np.argmax(rfind_idx_list)
+        if rfind_idx_list[max_idx] == -1:
+            return '无操作'
+        command = command_list[max_idx]
+    except Exception as e:
+        print('大模型请求失败：', e)
+        command = '无操作'
+    return command
 
 class ASR:
     def __init__(self):
@@ -44,13 +104,12 @@ class Paraformer(ASR):
             provider=provider,
         )
 
-print('正在加载模型...')
+print('正在加载ASR模型...')
 asr = Paraformer(
     model_path=f'{asr_path}/model.int8.onnx',
     tokens_path=f'{asr_path}/tokens.txt',
     # provider='cuda',
 )
-print('模型加载完成')
 
 sample_rate = 16000
 
@@ -107,20 +166,12 @@ try:
                 if len(text):
                     print()
                     print(f'第{idx}句：{text}')
-                    if '前进' in text:
-                        print('小车指令：前进')
-                        send_command('前进')
-                    elif '后退' in text:
-                        print('小车指令：后退')
-                        send_command('后退')
-                    elif '左转' in text:
-                        print('小车指令：左转')
-                        send_command('左转')
-                    elif '右转' in text:
-                        print('小车指令：右转')
-                        send_command('右转')
+                    command = get_command(text)
+                    if command == '无操作':
+                        print('未识别到小车指令')
                     else:
-                        print('小车指令：无')
+                        print('识别到小车指令：', command)
+                        send_command(command)
                     idx += 1
 except KeyboardInterrupt:
     sd.stop()
